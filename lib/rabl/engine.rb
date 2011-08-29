@@ -1,3 +1,5 @@
+require 'multi_json'
+
 module Rabl
   class Engine
     include Rabl::Helpers
@@ -27,9 +29,9 @@ module Rabl
     def to_hash(options={})
       options = options.reverse_merge(@_options)
       data = data_object(@_data)
-      if is_record?(data) || !data # object @user
+      if is_object?(data) || !data # object @user
         Rabl::Builder.new(@_data, options).to_hash(options)
-      elsif data.respond_to?(:each) # collection @users
+      elsif !is_object?(data) # collection @users
         object_name = data_name(@_data).to_s.singularize # @users => :users
         data.map { |object| Rabl::Builder.new({ object => object_name }, options).to_hash(options) }
       end
@@ -40,8 +42,8 @@ module Rabl
     def to_json(options={})
       include_root = Rabl.configuration.include_json_root
       options = options.reverse_merge(:root => include_root, :child_root => include_root)
-      result = @_collection_name ? { @_collection_name => to_hash(options) } : to_hash(options)
-      format_json(result.to_json)
+      result = defined?(@_collection_name) ? { @_collection_name => to_hash(options) } : to_hash(options)
+      format_json result
     end
 
     # Returns an xml representation of the data object
@@ -146,9 +148,11 @@ module Rabl
       @_scope.respond_to?(:params) ? @_scope.params : {}
     end
 
-    # Returns json embraced with callback if appropriate or plain if not
-    # detect_jsonp({ foo : "bar" }) => "test({ foo : 'bar' })"
+    # Returns data as json embraced with callback when detected
+    # format_json({ :foo => "bar" }) => "test({ foo : 'bar' })"
+    # format_json("{ foo : "bar" }") => "test({ foo : 'bar' })"
     def format_json(json_output)
+      json_output = Rabl.configuration.json_engine.encode(json_output) unless json_output.is_a?(String)
       use_callback = Rabl.configuration.enable_json_callbacks && request_params[:callback].present?
       use_callback ? "#{request_params[:callback]}(#{json_output})" : json_output
     end
