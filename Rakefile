@@ -9,7 +9,7 @@ Rake::TestTask.new(:test) do |test|
   test.pattern = 'test/**/*_test.rb'
   test.warning = true
   test.verbose = true
-  test.ruby_opts = ['-rubygems']
+  test.ruby_opts = ['-rubygems', '-rteststrap']
 end
 
 desc "Run tests for rabl"

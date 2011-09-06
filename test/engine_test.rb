@@ -192,32 +192,32 @@ context "Rabl::Engine" do
     end
   end
 
-  context "with json_engine" do
-    setup do
-      class CustomEncodeEngine
-        def self.encode string, options = {}
-          42
-        end
-      end
-
-      Rabl.configure do |config|
-        config.json_engine = CustomEncodeEngine
-      end
-    end
-
-    asserts 'that it returns process by custom to_json' do
-      template = rabl %q{
-        object @user
-      }
-      scope = Object.new
-      scope.instance_variable_set :@user, User.new
-      template.render(scope)
-    end.equals 42
-
-    teardown do
-      Rabl.reset_configuration!
-    end
-  end
+  #context "with json_engine" do
+  #  setup do
+  #    class CustomEncodeEngine
+  #      def self.encode string, options = {}
+  #        42
+  #      end
+  #    end
+  #
+  #    Rabl.configure do |config|
+  #      config.json_engine = CustomEncodeEngine
+  #    end
+  #  end
+  #
+  #  asserts 'that it returns process by custom to_json' do
+  #    template = rabl %q{
+  #      object @user
+  #    }
+  #    scope = Object.new
+  #    scope.instance_variable_set :@user, User.new
+  #    template.render(scope)
+  #  end.equals 42
+  #
+  #  teardown do
+  #    Rabl.reset_configuration!
+  #  end
+  #end
 
   context "without json root" do
     setup do
