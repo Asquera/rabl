@@ -19,7 +19,11 @@ module Rabl
       @_options[:scope] = @_scope
       @_options[:format] ||= self.request_format
       @_data = locals[:object] || self.default_object
-      instance_eval(@_source) if @_source.present?
+      if @_options[:source_location]
+        instance_eval(@_source, @_options[:source_location]) if @_source.present?
+      else
+        instance_eval(@_source) if @_source.present?
+      end
       instance_eval(&block) if block_given?
       self.send("to_" + @_options[:format].to_s)
     end
@@ -43,7 +47,16 @@ module Rabl
       include_root = Rabl.configuration.include_json_root
       options = options.reverse_merge(:root => include_root, :child_root => include_root)
       result = defined?(@_collection_name) ? { @_collection_name => to_hash(options) } : to_hash(options)
-      format_json result
+      format_json(result)
+    end
+
+    # Returns a msgpack representation of the data object
+    # to_msgpack(:root => true)
+    def to_msgpack(options={})
+      include_root = Rabl.configuration.include_msgpack_root
+      options = options.reverse_merge(:root => include_root, :child_root => include_root)
+      result = defined?(@_collection_name) ? { @_collection_name => to_hash(options) } : to_hash(options)
+      Rabl.configuration.msgpack_engine.pack result
     end
 
     # Returns an xml representation of the data object
@@ -127,9 +140,10 @@ module Rabl
     # Returns a guess at the default object for this template
     # default_object => @user
     def default_object
-      @_scope.respond_to?(:controller) ?
-        instance_variable_get("@#{@_scope.controller.controller_name}") :
-        nil
+      if @_scope.respond_to?(:controller)
+        full_name = @_scope.controller.controller_name
+        instance_variable_get("@#{ full_name.split("::").last }")
+      end
     end
 
     # Returns a guess at the format in this scope

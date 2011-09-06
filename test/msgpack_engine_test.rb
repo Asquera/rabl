@@ -2,28 +2,16 @@ require File.expand_path('../teststrap', __FILE__)
 require File.expand_path('../../lib/rabl', __FILE__)
 require File.expand_path('../../lib/rabl/template', __FILE__)
 require File.expand_path('../models/user', __FILE__)
-require File.expand_path('../models/ormless', __FILE__)
 
 context "Rabl::Engine" do
 
-  helper(:rabl) { |t| RablTemplate.new { t } }
+  helper(:rabl) { |t| RablTemplate.new("code", :format => 'msgpack') { t } }
 
-  context "#initialize" do
-    setup do
-      Rabl::Engine.new("...source...", { :format => 'xml', :root => true, :view_path => '/path/to/views' })
-    end
-
-    asserts_topic.assigns :_source
-    asserts_topic.assigns :_options
-  end
-
-
-  context "with defaults" do
+  context "with msgpack defaults" do
     setup do
       Rabl.configure do |config|
-        config.include_json_root     = true
-        config.include_xml_root      = false
-        config.enable_json_callbacks = false
+        # Comment this line out because include_msgpack_root is default.
+        #config.include_msgpack_root = true
       end
     end
 
@@ -36,7 +24,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new
         template.render(scope)
-      end.matches "{\"user\":{}}"
+      end.matches "\x81\xA4user\x80"
 
       asserts "that it can set root node" do
         template = rabl %q{
@@ -45,23 +33,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new
         template.render(scope)
-      end.equals "{\"person\":{}}"
-
-      asserts "that it can use non-ORM objects" do
-        template = rabl %q{
-          object @other
-        }
-        scope = Object.new
-        scope.instance_variable_set :@other, Ormless.new
-        template.render(scope)
-      end.equals "{\"ormless\":{}}"
-
-      asserts "that it works with nested controllers" do
-        template = rabl ""
-        scope = NestedScope::User.new
-        scope.instance_variable_set :@user, User.new
-        template.render(scope)
-      end.matches "{}"
+      end.equals "\x81\xA6person\x80"
     end
 
     context "#collection" do
@@ -73,7 +45,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@users, [User.new, User.new]
         template.render(scope)
-      end.equals "[{\"user\":{}},{\"user\":{}}]"
+      end.equals "\x92\x81\xA4user\x80\x81\xA4user\x80"
 
       asserts "that it sets root node for objects" do
         template = rabl %{
@@ -82,16 +54,8 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@users, [User.new, User.new]
         template.render(scope)
-      end.equals "{\"person\":[{\"person\":{}},{\"person\":{}}]}"
+      end.equals "\x81\xA6person\x92\x81\xA6person\x80\x81\xA6person\x80"
 
-      asserts "that it can use non-ORM objects" do
-        template = rabl %q{
-          object @others
-        }
-        scope = Object.new
-        scope.instance_variable_set :@others, [Ormless.new, Ormless.new]
-        template.render(scope)
-      end.equals "[{\"ormless\":{}},{\"ormless\":{}}]"
     end
 
     context "#attribute" do
@@ -104,7 +68,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"user\":{\"name\":\"irvine\"}}"
+      end.equals "\x81\xA4user\x81\xA4name\xA6irvine"
 
       asserts "that it can add attribute under a different key name through :as" do
         template = rabl %{
@@ -114,7 +78,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"user\":{\"city\":\"irvine\"}}"
+      end.equals "\x81\xA4user\x81\xA4city\xA6irvine"
 
       asserts "that it can add attribute under a different key name through hash" do
         template = rabl %{
@@ -124,7 +88,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"user\":{\"city\":\"irvine\"}}"
+      end.equals "\x81\xA4user\x81\xA4city\xA6irvine"
 
     end
 
@@ -135,14 +99,14 @@ context "Rabl::Engine" do
           code(:foo) { 'bar' }
         }
         template.render(Object.new)
-      end.equals "{\"foo\":\"bar\"}"
+      end.equals "\x81\xA3foo\xA3bar"
 
       asserts "that it can be passed conditionals" do
         template = rabl %{
           code(:foo, :if => lambda { |i| false }) { 'bar' }
         }
         template.render(Object.new)
-      end.equals "{}"
+      end.equals "\x80"
 
     end
 
@@ -156,8 +120,8 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA')
-        template.render(scope).split('').sort
-      end.equals "{\"user\":{\"name\":\"leo\",\"user\":{\"city\":\"LA\"}}}".split('').sort
+        template.render(scope)
+      end.equals "\x81\xA4user\x82\xA4name\xA3leo\xA4user\x81\xA4city\xA2LA"
 
       asserts "that it can create a child node with different key" do
         template = rabl %{
@@ -167,9 +131,9 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA')
-        template.render(scope).split('').sort
+        template.render(scope)
 
-      end.equals "{\"user\":{\"name\":\"leo\",\"person\":{\"city\":\"LA\"}}}".split('').sort
+      end.equals "\x81\xA4user\x82\xA4name\xA3leo\xA6person\x81\xA4city\xA2LA"
     end
 
     context "#glue" do
@@ -183,8 +147,8 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA', :age => 12)
-        template.render(scope).split('').sort
-      end.equals "{\"user\":{\"name\":\"leo\",\"city\":\"LA\",\"age\":12}}".split('').sort
+        template.render(scope)
+      end.equals "\x81\xA4user\x83\xA4name\xA3leo\xA4city\xA2LA\xA3age\f"
     end
 
     teardown do
@@ -192,16 +156,16 @@ context "Rabl::Engine" do
     end
   end
 
-  context "with json_engine" do
+  context "with msgpack_engine" do
     setup do
       class CustomEncodeEngine
-        def self.encode string, options = {}
+        def self.pack string
           42
         end
       end
 
       Rabl.configure do |config|
-        config.json_engine = CustomEncodeEngine
+        config.msgpack_engine = CustomEncodeEngine
       end
     end
 
@@ -219,12 +183,10 @@ context "Rabl::Engine" do
     end
   end
 
-  context "without json root" do
+  context "without msgpack root" do
     setup do
       Rabl.configure do |config|
-        config.include_json_root     = false
-        config.include_xml_root      = false
-        config.enable_json_callbacks = false
+        config.include_msgpack_root = false
       end
     end
 
@@ -237,7 +199,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new
         template.render(scope)
-      end.matches "{}"
+      end.matches "\x80"
 
       asserts "that it can set root node" do
         template = rabl %q{
@@ -246,7 +208,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new
         template.render(scope)
-      end.equals "{}"
+      end.equals "\x80"
     end
 
     context "#collection" do
@@ -258,7 +220,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@users, [User.new, User.new]
         template.render(scope)
-      end.equals "[{},{}]"
+      end.equals "\x92\x80\x80"
 
       asserts "that it sets root node for objects" do
         template = rabl %{
@@ -267,7 +229,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@users, [User.new, User.new]
         template.render(scope)
-      end.equals "{\"person\":[{},{}]}"
+      end.equals "\x81\xA6person\x92\x80\x80"
 
     end
 
@@ -281,7 +243,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"name\":\"irvine\"}"
+      end.equals "\x81\xA4name\xA6irvine"
 
       asserts "that it can add attribute under a different key name through :as" do
         template = rabl %{
@@ -291,7 +253,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"city\":\"irvine\"}"
+      end.equals "\x81\xA4city\xA6irvine"
 
       asserts "that it can add attribute under a different key name through hash" do
         template = rabl %{
@@ -301,7 +263,7 @@ context "Rabl::Engine" do
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'irvine')
         template.render(scope)
-      end.equals "{\"city\":\"irvine\"}"
+      end.equals "\x81\xA4city\xA6irvine"
 
     end
 
@@ -312,14 +274,14 @@ context "Rabl::Engine" do
           code(:foo) { 'bar' }
         }
         template.render(Object.new)
-      end.equals "{\"foo\":\"bar\"}"
+      end.equals "\x81\xA3foo\xA3bar"
 
       asserts "that it can be passed conditionals" do
         template = rabl %{
           code(:foo, :if => lambda { |i| false }) { 'bar' }
         }
         template.render(Object.new)
-      end.equals "{}"
+      end.equals "\x80"
 
     end
 
@@ -333,8 +295,8 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA')
-        template.render(scope).split('').sort
-      end.equals "{\"name\":\"leo\",\"user\":{\"city\":\"LA\"}}".split('').sort
+        template.render(scope)
+      end.equals "\x82\xA4name\xA3leo\xA4user\x81\xA4city\xA2LA"
 
       asserts "that it can create a child node with different key" do
         template = rabl %{
@@ -344,9 +306,9 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA')
-        template.render(scope).split('').sort
+        template.render(scope)
 
-      end.equals "{\"name\":\"leo\",\"person\":{\"city\":\"LA\"}}".split('').sort
+      end.equals "\x82\xA4name\xA3leo\xA6person\x81\xA4city\xA2LA"
     end
 
     context "#glue" do
@@ -360,8 +322,8 @@ context "Rabl::Engine" do
         }
         scope = Object.new
         scope.instance_variable_set :@user, User.new(:name => 'leo', :city => 'LA', :age => 12)
-        template.render(scope).split('').sort
-      end.equals "{\"name\":\"leo\",\"city\":\"LA\",\"age\":12}".split('').sort
+        template.render(scope)
+      end.equals "\x83\xA4name\xA3leo\xA4city\xA2LA\xA3age\f"
     end
 
     teardown do

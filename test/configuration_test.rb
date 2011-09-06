@@ -1,9 +1,8 @@
 require File.expand_path('../teststrap', __FILE__)
 require File.expand_path('../../lib/rabl', __FILE__)
 
-context "Rabl::Configuration" do
-
-  context "with defaults" do
+context 'Rabl::Configuration' do
+  context 'defaults' do
     setup { Rabl.configuration }
 
     asserts(:include_json_root).equals true
@@ -12,6 +11,7 @@ context "Rabl::Configuration" do
     asserts(:json_engine).equals MultiJson.engine
   end
 
+<<<<<<< HEAD
   context "with configuration" do
     class CustomEncodeEngine; end
     setup do
@@ -20,10 +20,16 @@ context "Rabl::Configuration" do
         config.include_xml_root      = true
         config.enable_json_callbacks = true
         config.json_engine           = CustomEncodeEngine
+=======
+  context 'custom JSON engine' do
+    setup do
+      Rabl.configure do |c|
+        c.json_engine = :yajl
+>>>>>>> template_names_in_trace
       end
-      Rabl.configuration
     end
 
+<<<<<<< HEAD
     asserts(:include_json_root).equals false
     asserts(:include_xml_root).equals true
     asserts(:enable_json_callbacks).equals true
@@ -32,5 +38,8 @@ context "Rabl::Configuration" do
     teardown do
       Rabl.reset_configuration!
     end
+=======
+    asserts('uses a custom JSON engine') { topic.json_engine == MultiJson::Engines::Yajl }
+>>>>>>> template_names_in_trace
   end
 end
