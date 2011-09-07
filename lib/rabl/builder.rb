@@ -13,6 +13,10 @@ module Rabl
       @_result    = {}
     end
 
+    def options
+      @options
+    end
+    
     # Returns a hash representation of the data object
     # to_hash(:root => true)
     def to_hash(options={})

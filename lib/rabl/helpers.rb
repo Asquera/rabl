@@ -39,6 +39,11 @@ module Rabl
     def object_to_hash(object, options={}, &block)
       #return object unless is_object?(object)
       engine_options = { :format => "hash", :root => (options[:root] || false), :source_location => options[:source_location]}
+      
+      if options && options[:views]
+        engine_options[:views] = options[:views]
+      end
+
       Rabl::Engine.new(options[:source], engine_options).render(@_scope, :object => object, &block)
     end
 
@@ -70,7 +75,8 @@ module Rabl
       elsif defined? Padrino
         root_path = Padrino.root
         # use Padrino's own template resolution mechanism
-        file_path, _ = @_scope.instance_eval { resolve_template(file) }
+        opts = options.dup
+        file_path, _ = @_scope.instance_eval { resolve_template(file, opts) }
         # Padrino chops the extension, stitch it back on
         file_path = File.join(@_scope.settings.views, (file_path.to_s + ".rabl"))
       end
